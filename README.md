@@ -2,6 +2,8 @@
 
 Editorial-friendly revision history for WordPress with visual diffs and preview capabilities.
 
+[![Try in WordPress Playground](https://img.shields.io/badge/Try%20it-WordPress%20Playground-3858e9?logo=wordpress)](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/alansmodic/edit-ledger/master/blueprint.json)
+
 ## Description
 
 Edit Ledger replaces WordPress's basic revision slider with a visual timeline showing who changed what and when, with better diff visualization. Perfect for editorial teams who need to track content changes.
