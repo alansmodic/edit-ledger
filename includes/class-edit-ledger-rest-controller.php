@@ -1,12 +1,17 @@
 <?php
 /**
  * REST API controller for Edit Ledger.
+ *
+ * @package Edit_Ledger
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Handles all REST API endpoints for revisions, diffs, and restoration.
+ */
 class Edit_Ledger_REST_Controller extends WP_REST_Controller {
 
 	/**
@@ -239,7 +244,7 @@ class Edit_Ledger_REST_Controller extends WP_REST_Controller {
 					'name'   => $compare_author ? $compare_author->display_name : __( 'Unknown', 'edit-ledger' ),
 					'avatar' => get_avatar_url( $compare_post->post_author, array( 'size' => 48 ) ),
 				),
-				'is_current'    => $compare_post->post_type !== 'revision',
+				'is_current'    => 'revision' !== $compare_post->post_type,
 			),
 			'to'   => array(
 				'id'            => $revision->ID,
@@ -309,19 +314,28 @@ class Edit_Ledger_REST_Controller extends WP_REST_Controller {
 		$params[] = $per_page;
 		$params[] = $offset;
 
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$query = $wpdb->prepare(
-			"SELECT r.*, p.post_title as parent_title, p.post_type as parent_type
-			 FROM {$wpdb->posts} r
-			 INNER JOIN {$wpdb->posts} p ON r.post_parent = p.ID
-			 WHERE {$where_sql}
-			 ORDER BY r.post_modified DESC
-			 LIMIT %d OFFSET %d",
-			$params
-		);
+		$cache_key   = 'edit_ledger_recent_' . md5( $where_sql . wp_json_encode( $params ) );
+		$cache_group = 'edit_ledger';
+		$revisions   = wp_cache_get( $cache_key, $cache_group );
 
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		$revisions = $wpdb->get_results( $query );
+		if ( false === $revisions ) {
+			// The WHERE clause is built dynamically from hardcoded format strings with prepare() placeholders.
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+			$query = $wpdb->prepare(
+				"SELECT r.*, p.post_title as parent_title, p.post_type as parent_type
+				 FROM {$wpdb->posts} r
+				 INNER JOIN {$wpdb->posts} p ON r.post_parent = p.ID
+				 WHERE {$where_sql}
+				 ORDER BY r.post_modified DESC
+				 LIMIT %d OFFSET %d",
+				$params
+			);
+			// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery
+			$revisions = $wpdb->get_results( $query );
+			wp_cache_set( $cache_key, $revisions, $cache_group, 300 );
+		}
 
 		$data = array();
 		foreach ( $revisions as $revision ) {
@@ -379,7 +393,7 @@ class Edit_Ledger_REST_Controller extends WP_REST_Controller {
 	 */
 	private function format_revision_for_admin( $revision ) {
 		$author      = get_userdata( $revision->post_author );
-		$is_autosave = strpos( $revision->post_name, 'autosave' ) !== false;
+		$is_autosave = false !== strpos( $revision->post_name, 'autosave' );
 
 		return array(
 			'id'            => $revision->ID,
@@ -478,7 +492,7 @@ class Edit_Ledger_REST_Controller extends WP_REST_Controller {
 					return '[Image: ' . $alt_match[1] . ']';
 				}
 				if ( preg_match( '/src=["\']([^"\']*)["\']/', $img, $src_match ) ) {
-					$filename = basename( parse_url( $src_match[1], PHP_URL_PATH ) );
+					$filename = basename( wp_parse_url( $src_match[1], PHP_URL_PATH ) );
 					if ( ! empty( $filename ) ) {
 						return '[Image: ' . $filename . ']';
 					}
@@ -494,7 +508,7 @@ class Edit_Ledger_REST_Controller extends WP_REST_Controller {
 			function ( $matches ) {
 				$video = $matches[0];
 				if ( preg_match( '/src=["\']([^"\']*)["\']/', $video, $src_match ) ) {
-					$filename = basename( parse_url( $src_match[1], PHP_URL_PATH ) );
+					$filename = basename( wp_parse_url( $src_match[1], PHP_URL_PATH ) );
 					if ( ! empty( $filename ) ) {
 						return '[Video: ' . $filename . ']';
 					}
@@ -510,7 +524,7 @@ class Edit_Ledger_REST_Controller extends WP_REST_Controller {
 			function ( $matches ) {
 				$audio = $matches[0];
 				if ( preg_match( '/src=["\']([^"\']*)["\']/', $audio, $src_match ) ) {
-					$filename = basename( parse_url( $src_match[1], PHP_URL_PATH ) );
+					$filename = basename( wp_parse_url( $src_match[1], PHP_URL_PATH ) );
 					if ( ! empty( $filename ) ) {
 						return '[Audio: ' . $filename . ']';
 					}
@@ -539,7 +553,7 @@ class Edit_Ledger_REST_Controller extends WP_REST_Controller {
 					if ( strpos( $url, 'spotify' ) !== false ) {
 						return '[Spotify Embed]';
 					}
-					return '[Embed: ' . parse_url( $url, PHP_URL_HOST ) . ']';
+					return '[Embed: ' . wp_parse_url( $url, PHP_URL_HOST ) . ']';
 				}
 				return '[Embed]';
 			},
@@ -581,7 +595,7 @@ class Edit_Ledger_REST_Controller extends WP_REST_Controller {
 			function ( $matches ) {
 				$link = $matches[0];
 				if ( preg_match( '/href=["\']([^"\']*)["\']/', $link, $href_match ) ) {
-					$filename = basename( parse_url( $href_match[1], PHP_URL_PATH ) );
+					$filename = basename( wp_parse_url( $href_match[1], PHP_URL_PATH ) );
 					if ( ! empty( $filename ) ) {
 						return '[File: ' . $filename . ']';
 					}
@@ -683,7 +697,7 @@ class Edit_Ledger_REST_Controller extends WP_REST_Controller {
 						'type' => 'image',
 						'src'  => $src,
 						'alt'  => $alt,
-						'name' => ! empty( $alt ) ? $alt : basename( parse_url( $src, PHP_URL_PATH ) ),
+						'name' => ! empty( $alt ) ? $alt : basename( wp_parse_url( $src, PHP_URL_PATH ) ),
 					);
 				}
 			}
@@ -703,7 +717,7 @@ class Edit_Ledger_REST_Controller extends WP_REST_Controller {
 						'type' => 'video',
 						'src'  => $src,
 						'alt'  => '',
-						'name' => basename( parse_url( $src, PHP_URL_PATH ) ),
+						'name' => basename( wp_parse_url( $src, PHP_URL_PATH ) ),
 					);
 				}
 			}

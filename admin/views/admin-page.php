@@ -1,6 +1,8 @@
 <?php
 /**
  * Admin page template for Edit Ledger.
+ *
+ * @package Edit_Ledger
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

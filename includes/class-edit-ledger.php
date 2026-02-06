@@ -1,12 +1,17 @@
 <?php
 /**
  * Core plugin class.
+ *
+ * @package Edit_Ledger
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Main plugin class responsible for registering REST routes and editor assets.
+ */
 class Edit_Ledger {
 
 	/**

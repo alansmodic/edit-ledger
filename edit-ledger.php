@@ -7,6 +7,8 @@
  * Requires at least: 6.4
  * Requires PHP: 7.4
  * Text Domain: edit-ledger
+ *
+ * @package Edit_Ledger
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

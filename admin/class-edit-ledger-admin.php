@@ -1,12 +1,17 @@
 <?php
 /**
  * Admin page for Edit Ledger.
+ *
+ * @package Edit_Ledger
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Registers admin menu page and enqueues admin-specific assets.
+ */
 class Edit_Ledger_Admin {
 
 	/**

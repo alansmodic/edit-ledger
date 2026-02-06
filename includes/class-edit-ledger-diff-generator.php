@@ -1,12 +1,17 @@
 <?php
 /**
  * Diff generator for Edit Ledger.
+ *
+ * @package Edit_Ledger
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Implements LCS-based word-level diff generation between two text strings.
+ */
 class Edit_Ledger_Diff_Generator {
 
 	/**
@@ -96,14 +101,14 @@ class Edit_Ledger_Diff_Generator {
 		while ( $i > 0 || $j > 0 ) {
 			if ( $i > 0 && $j > 0 && $from[ $i - 1 ] === $to[ $j - 1 ] ) {
 				array_unshift( $diff, array( 'equal', $from[ $i - 1 ] ) );
-				$i--;
-				$j--;
+				--$i;
+				--$j;
 			} elseif ( $j > 0 && ( 0 === $i || $lcs[ $i ][ $j - 1 ] >= $lcs[ $i - 1 ][ $j ] ) ) {
 				array_unshift( $diff, array( 'insert', $to[ $j - 1 ] ) );
-				$j--;
+				--$j;
 			} elseif ( $i > 0 && ( 0 === $j || $lcs[ $i ][ $j - 1 ] < $lcs[ $i - 1 ][ $j ] ) ) {
 				array_unshift( $diff, array( 'delete', $from[ $i - 1 ] ) );
-				$i--;
+				--$i;
 			}
 		}
 
@@ -117,9 +122,9 @@ class Edit_Ledger_Diff_Generator {
 	 * @return string HTML output.
 	 */
 	private function render_diff( $diff ) {
-		$html          = '';
-		$current_type  = null;
-		$current_text  = '';
+		$html         = '';
+		$current_type = null;
+		$current_text = '';
 
 		foreach ( $diff as $op ) {
 			list( $type, $text ) = $op;
