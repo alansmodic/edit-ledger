@@ -1,5 +1,9 @@
 {
 	"landingPage": "/wp-admin/post-new.php",
+	"preferredVersions": {
+		"wp": "nightly",
+		"php": "8.3"
+	},
 	"login": true,
 	"steps": [
 		{
