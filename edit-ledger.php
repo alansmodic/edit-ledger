@@ -18,9 +18,12 @@ require_once __DIR__ . '/includes/constants.php';
 require_once __DIR__ . '/includes/class-edit-ledger.php';
 require_once __DIR__ . '/includes/class-edit-ledger-rest-controller.php';
 require_once __DIR__ . '/includes/class-edit-ledger-diff-generator.php';
+require_once __DIR__ . '/includes/class-edit-ledger-ai-summary.php';
+require_once __DIR__ . '/includes/class-edit-ledger-abilities.php';
 require_once __DIR__ . '/admin/class-edit-ledger-admin.php';
 
 add_action('plugins_loaded', static function () {
     \EditLedger\EditLedger::getInstance();
     \EditLedger\EditLedgerAdmin::getInstance();
+    new \EditLedger\EditLedgerAbilities();
 });

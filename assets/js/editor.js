@@ -145,6 +145,38 @@
 		var isLoadingMedia = _useLoadingState[0];
 		var setIsLoadingMedia = _useLoadingState[1];
 
+		// AI summary state.
+		var _summaryState = useState(revision.ai_summary || null);
+		var localSummary = _summaryState[0];
+		var setLocalSummary = _summaryState[1];
+
+		var _summarizingState = useState(false);
+		var isSummarizing = _summarizingState[0];
+		var setIsSummarizing = _summarizingState[1];
+
+		var _summaryErrorState = useState(null);
+		var summaryError = _summaryErrorState[0];
+		var setSummaryError = _summaryErrorState[1];
+
+		function handleSummarize(e) {
+			if (e) { e.stopPropagation(); }
+			setIsSummarizing(true);
+			setSummaryError(null);
+			apiFetch({
+				path: '/edit-ledger/v1/revisions/' + revision.id + '/summary',
+				method: 'POST',
+			})
+				.then(function (data) {
+					setLocalSummary(data.summary);
+				})
+				.catch(function () {
+					setSummaryError(strings.summaryError || 'Could not generate summary.');
+				})
+				.finally(function () {
+					setIsSummarizing(false);
+				});
+		}
+
 		// Fetch media changes when card is expanded.
 		useEffect(function () {
 			if (!isExpanded || mediaData !== null) {
@@ -216,6 +248,39 @@
 					strings.changed,
 					' ',
 					changes.length > 0 ? changes.join(', ') : strings.noChanges
+				),
+				// AI Summary block.
+				localSummary && wp.element.createElement(
+					'div',
+					{ className: 'edit-ledger-card__ai-summary' },
+					wp.element.createElement('span', { className: 'edit-ledger-card__ai-label' }, (strings.aiSummary || 'AI Summary') + ':'),
+					' ' + localSummary
+				),
+				!localSummary && !isSummarizing && !summaryError && config.aiAvailable && wp.element.createElement(
+					Button,
+					{
+						variant: 'tertiary',
+						isSmall: true,
+						onClick: handleSummarize,
+					},
+					strings.summarize || 'Summarize'
+				),
+				isSummarizing && wp.element.createElement(
+					'div',
+					{ className: 'edit-ledger-card__ai-loading' },
+					wp.element.createElement(Spinner),
+					wp.element.createElement('span', null, strings.summarizing || 'Summarizing...')
+				),
+				summaryError && wp.element.createElement(
+					'div',
+					{ className: 'edit-ledger-card__ai-error' },
+					summaryError,
+					' ',
+					wp.element.createElement('a', {
+						onClick: handleSummarize,
+						role: 'button',
+						tabIndex: 0,
+					}, strings.retry || 'Retry')
 				),
 				mediaSummary && wp.element.createElement(
 					'div',
@@ -341,6 +406,12 @@
 				'div',
 				{ className: 'edit-ledger-doc-panel__changes' },
 				strings.changed + ' ' + changes.join(', ')
+			),
+			// AI Summary
+			latest.ai_summary && wp.element.createElement(
+				'div',
+				{ className: 'edit-ledger-doc-panel__ai-summary' },
+				latest.ai_summary
 			),
 			// Media indicator
 			isLoadingMedia && wp.element.createElement(

@@ -35,6 +35,37 @@ class EditLedger
     {
         add_action('rest_api_init', array( $this, 'registerRestRoutes' ));
         add_action('enqueue_block_editor_assets', array( $this, 'enqueueEditorAssets' ));
+        add_action('wp_save_post_revision', array( $this, 'maybeAutoSummarize' ), 10, 1);
+    }
+
+    /**
+     * Automatically generate an AI summary when a revision is saved.
+     *
+     * @param int $revision_id The revision post ID.
+     * @return void
+     */
+    public function maybeAutoSummarize($revision_id)
+    {
+        if (! apply_filters('edit_ledger_auto_summarize', true, $revision_id)) {
+            return;
+        }
+
+        $ai = new EditLedgerAiSummary();
+
+        if (! $ai->isAvailable()) {
+            return;
+        }
+
+        $revision = get_post($revision_id);
+        if (! $revision) {
+            return;
+        }
+
+        if (! user_can($revision->post_author, 'prompt_ai')) {
+            return;
+        }
+
+        $ai->generate($revision_id);
     }
 
     /**
@@ -107,7 +138,13 @@ class EditLedger
                     'revisions'        => __('revisions', 'edit-ledger'),
                     'viewInRevisions'  => __('View in Revisions', 'edit-ledger'),
                     'viewTimeline'     => __('Full Timeline', 'edit-ledger'),
+                    'aiSummary'        => __('AI Summary', 'edit-ledger'),
+                    'summarize'        => __('Summarize', 'edit-ledger'),
+                    'summarizing'      => __('Summarizing...', 'edit-ledger'),
+                    'summaryError'     => __('Could not generate summary.', 'edit-ledger'),
+                    'retry'            => __('Retry', 'edit-ledger'),
                 ),
+                'aiAvailable'   => function_exists('wp_ai_client_prompt') && current_user_can('prompt_ai'),
             )
         );
     }

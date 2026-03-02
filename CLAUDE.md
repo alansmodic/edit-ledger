@@ -15,7 +15,9 @@ edit-ledger/
 │   ├── constants.php                        # Plugin version and path constants
 │   ├── class-edit-ledger.php                # Core singleton: registers REST routes + editor assets
 │   ├── class-edit-ledger-rest-controller.php  # REST API (extends WP_REST_Controller)
-│   └── class-edit-ledger-diff-generator.php   # LCS-based word-level diff engine
+│   ├── class-edit-ledger-diff-generator.php   # LCS-based word-level diff engine
+│   ├── class-edit-ledger-ai-summary.php       # AI summary generation via WP AI Client
+│   └── class-edit-ledger-abilities.php        # Abilities API registration
 ├── admin/
 │   ├── class-edit-ledger-admin.php          # Admin menu + asset enqueuing
 │   └── views/admin-page.php                 # Admin dashboard HTML template
@@ -45,6 +47,8 @@ All routes are under the `edit-ledger/v1` namespace:
 | GET | `/posts/{post_id}/revisions` | List revisions for a post |
 | GET | `/revisions/{revision_id}/diff` | Get word-level diff for a revision |
 | POST | `/revisions/{revision_id}/restore` | Restore a revision to parent post |
+| POST | `/revisions/{revision_id}/summary` | Generate AI summary for a revision |
+| GET | `/revisions/{revision_id}/summary` | Get cached AI summary for a revision |
 | GET | `/recent` | Recent revisions across all posts (admin) |
 
 ## Key Classes
@@ -52,6 +56,8 @@ All routes are under the `edit-ledger/v1` namespace:
 - **`Edit_Ledger`** (`includes/class-edit-ledger.php`) — Singleton. Hooks into `rest_api_init` and `enqueue_block_editor_assets`. Entry point for plugin logic.
 - **`Edit_Ledger_REST_Controller`** (`includes/class-edit-ledger-rest-controller.php`) — Largest file. Handles all REST endpoints, permission checks, HTML stripping for diffs, media extraction (images, video, YouTube, Vimeo, embeds), and media change detection.
 - **`Edit_Ledger_Diff_Generator`** (`includes/class-edit-ledger-diff-generator.php`) — Implements LCS (Longest Common Subsequence) algorithm for word-level diff. Tokenizes text, computes diff operations, renders to `<ins>`/`<del>` HTML.
+- **`EditLedgerAiSummary`** (`includes/class-edit-ledger-ai-summary.php`) — Stateless service. Generates AI summaries of revision changes via `wp_ai_client_prompt()`, stores results in post meta. Methods: `isAvailable()`, `generate()`, `get()`, `getSummaryText()`.
+- **`EditLedgerAbilities`** (`includes/class-edit-ledger-abilities.php`) — Registers `edit-ledger/summarize-revision` ability with the WordPress Abilities API so external AI agents and MCP clients can discover and invoke AI summaries.
 - **`Edit_Ledger_Admin`** (`admin/class-edit-ledger-admin.php`) — Singleton. Registers admin menu page, enqueues admin-specific CSS/JS.
 
 ## WP 7.0 Visual Revisions Integration
@@ -106,4 +112,5 @@ There is no build step. To install:
   1. `PluginDocumentSettingPanel` — compact summary (latest revision type, changed fields, media indicator, action buttons) injected into the native document sidebar
   2. `PluginSidebar` — full revision timeline with expanded cards and inline media changes (power-user detail view)
 - **Admin dashboard:** Independent of editor integration. Uses the diff REST endpoint and jQuery-based UI with its own diff modal and restore functionality
-- **Permission model:** `edit_post` capability for viewing/restoring individual post revisions; `edit_others_posts` for the admin-wide recent revisions view
+- **Permission model:** `edit_post` capability for viewing/restoring individual post revisions; `edit_others_posts` for the admin-wide recent revisions view; `prompt_ai` for AI summary generation
+- **AI summaries:** Generated via WP AI Client (`wp_ai_client_prompt()`). Auto-generated on revision save (filterable via `edit_ledger_auto_summarize`). Cached in `_edit_ledger_ai_summary` post meta. Exposed via REST endpoint and Abilities API. System instruction filterable via `edit_ledger_ai_system_instruction`.

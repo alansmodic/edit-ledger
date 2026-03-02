@@ -15,6 +15,8 @@ Edit Ledger adds a sidebar timeline to the block editor showing who changed what
 - **WP 7.0 Integration**: "View in Revisions" button opens the native visual revisions mode with block-level diffs
 - **Admin Dashboard**: Overview of recent revisions across all posts with filtering and word-level diffs
 - **Clean Text Diffs**: Strips HTML to show editors clean, readable text changes (admin dashboard)
+- **AI Revision Summaries**: Plain-English summaries of what changed in each revision (e.g., "Headline rewritten for clarity. New section added: Pricing.") powered by the WP AI Client
+- **Abilities API**: Exposes `edit-ledger/summarize-revision` via the WordPress Abilities API for external AI agents and MCP clients
 
 ## Requirements
 
@@ -34,6 +36,16 @@ Edit Ledger adds a sidebar timeline to the block editor showing who changed what
 - Click the clock icon or "Edit Ledger" in the sidebar menu
 - Click any revision card to expand and see what changed, including media changes
 - Use "View in Revisions" to enter WP 7.0's native visual revisions mode
+
+### AI Summaries
+- When an AI provider is configured, a "Summarize" button appears on expanded revision cards
+- Summaries are auto-generated on save if the author has the `prompt_ai` capability
+- Disable auto-summarization: `add_filter('edit_ledger_auto_summarize', '__return_false');`
+- Customize the AI prompt: use the `edit_ledger_ai_system_instruction` filter
+
+### Abilities API
+- The `edit-ledger/summarize-revision` ability is registered for external discovery
+- Invoke via `POST /wp-json/wp-abilities/v1/abilities/edit-ledger/summarize-revision/run` with `{"input":{"revision_id":123}}`
 
 ### Admin Dashboard
 - Navigate to "Edit Ledger" in the WordPress admin menu

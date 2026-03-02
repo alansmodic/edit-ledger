@@ -335,3 +335,51 @@
 	background: #f9fafb;
 	border-top: 1px solid #e5e7eb;
 }
+
+/* AI Summary — Timeline Card */
+.edit-ledger-card__ai-summary {
+	font-size: 12px;
+	background: #f0f0f1;
+	padding: 8px;
+	border-radius: 4px;
+	margin-bottom: 8px;
+	line-height: 1.5;
+}
+
+.edit-ledger-card__ai-label {
+	font-weight: 600;
+	color: #646970;
+	margin-right: 4px;
+}
+
+.edit-ledger-card__ai-loading {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	color: #646970;
+	margin-bottom: 8px;
+}
+
+.edit-ledger-card__ai-error {
+	font-size: 12px;
+	color: #cc1818;
+	margin-bottom: 8px;
+}
+
+.edit-ledger-card__ai-error a {
+	color: #cc1818;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+/* AI Summary — Document Panel */
+.edit-ledger-doc-panel__ai-summary {
+	font-size: 12px;
+	background: #f0f0f1;
+	padding: 6px 8px;
+	border-radius: 4px;
+	margin-bottom: 6px;
+	line-height: 1.4;
+	color: #1e1e1e;
+}

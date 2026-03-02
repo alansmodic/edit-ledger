@@ -95,6 +95,44 @@ class EditLedgerRestController extends \WP_REST_Controller
             )
         );
 
+        // POST|GET /revisions/{revision_id}/summary - AI summary for a revision.
+        register_rest_route(
+            $this->namespace,
+            '/revisions/(?P<revision_id>[\d]+)/summary',
+            array(
+                array(
+                    'methods'             => \WP_REST_Server::CREATABLE,
+                    'callback'            => array( $this, 'generateRevisionSummary' ),
+                    'permission_callback' => array(
+                        $this,
+                        'generateSummaryPermissionsCheck',
+                    ),
+                    'args'                => array(
+                        'revision_id' => array(
+                            'required'          => true,
+                            'type'              => 'integer',
+                            'sanitize_callback' => 'absint',
+                        ),
+                    ),
+                ),
+                array(
+                    'methods'             => \WP_REST_Server::READABLE,
+                    'callback'            => array( $this, 'getRevisionSummary' ),
+                    'permission_callback' => array(
+                        $this,
+                        'getRevisionPermissionsCheck',
+                    ),
+                    'args'                => array(
+                        'revision_id' => array(
+                            'required'          => true,
+                            'type'              => 'integer',
+                            'sanitize_callback' => 'absint',
+                        ),
+                    ),
+                ),
+            )
+        );
+
         // GET /recent - Recent revisions across all posts (admin).
         register_rest_route(
             $this->namespace,
@@ -385,6 +423,95 @@ class EditLedgerRestController extends \WP_REST_Controller
     }
 
     /**
+     * Generate an AI summary for a revision.
+     *
+     * @param \WP_REST_Request $request Request object.
+     * @return \WP_REST_Response|\WP_Error
+     */
+    public function generateRevisionSummary($request)
+    {
+        $ai = new EditLedgerAiSummary();
+
+        if (! $ai->isAvailable()) {
+            return new \WP_Error(
+                'ai_unavailable',
+                __('AI summarization is not available. No AI provider is configured.', 'edit-ledger'),
+                array( 'status' => 501 )
+            );
+        }
+
+        $revision_id = $request->get_param('revision_id');
+        $result      = $ai->generate($revision_id);
+
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        return rest_ensure_response($result);
+    }
+
+    /**
+     * Get the cached AI summary for a revision.
+     *
+     * @param \WP_REST_Request $request Request object.
+     * @return \WP_REST_Response|\WP_Error
+     */
+    public function getRevisionSummary($request)
+    {
+        $revision_id = $request->get_param('revision_id');
+        $ai          = new EditLedgerAiSummary();
+        $cached      = $ai->get($revision_id);
+
+        if (! $cached) {
+            return new \WP_Error(
+                'not_found',
+                __('No AI summary exists for this revision.', 'edit-ledger'),
+                array( 'status' => 404 )
+            );
+        }
+
+        return rest_ensure_response($cached);
+    }
+
+    /**
+     * Permission check for generating a revision summary.
+     *
+     * @param \WP_REST_Request $request Request object.
+     * @return bool|\WP_Error
+     */
+    public function generateSummaryPermissionsCheck($request)
+    {
+        $revision_id = $request->get_param('revision_id');
+        $revision    = get_post($revision_id);
+
+        if (! $revision || 'revision' !== $revision->post_type) {
+            return new \WP_Error(
+                'not_found',
+                __('Revision not found.', 'edit-ledger'),
+                array( 'status' => 404 )
+            );
+        }
+
+        if (! current_user_can('edit_post', $revision->post_parent)) {
+            return new \WP_Error(
+                'forbidden',
+                __('You do not have permission to edit this post.', 'edit-ledger'),
+                array( 'status' => 403 )
+            );
+        }
+
+        if (! current_user_can('prompt_ai')) {
+            return new \WP_Error(
+                'forbidden',
+                __('You do not have permission to use AI features.', 'edit-ledger'),
+                array( 'status' => 403 )
+            );
+        }
+
+        return true;
+    }
+
+    /**
      * Format a revision for API response.
      *
      * @param \WP_Post $revision  The revision post.
@@ -430,6 +557,7 @@ class EditLedgerRestController extends \WP_REST_Controller
             ),
             'type'          => $is_autosave ? 'autosave' : 'manual',
             'changes'       => $changes,
+            'ai_summary'    => ( new EditLedgerAiSummary() )->getSummaryText($revision->ID),
         );
     }
 
@@ -466,6 +594,7 @@ class EditLedgerRestController extends \WP_REST_Controller
             ),
             'type'          => $is_autosave ? 'autosave' : 'manual',
             'edit_url'      => get_edit_post_link($revision->post_parent, 'raw'),
+            'ai_summary'    => ( new EditLedgerAiSummary() )->getSummaryText($revision->ID),
         );
     }
 
@@ -475,7 +604,7 @@ class EditLedgerRestController extends \WP_REST_Controller
      * @param \WP_Post $revision The current revision.
      * @return \WP_Post|null
      */
-    private function getPreviousRevision($revision)
+    public static function getPreviousRevision($revision)
     {
         $revisions = wp_get_post_revisions(
             $revision->post_parent,
@@ -501,14 +630,14 @@ class EditLedgerRestController extends \WP_REST_Controller
      * @param string $content The content to clean.
      * @return string Cleaned text content.
      */
-    private function stripHtmlForDiff($content)
+    public static function stripHtmlForDiff($content)
     {
         if (empty($content)) {
             return '';
         }
 
         // Convert media elements to placeholders BEFORE stripping HTML.
-        $content = $this->convertMediaToPlaceholders($content);
+        $content = self::convertMediaToPlaceholders($content);
 
         // Remove Gutenberg block comments.
         $content = preg_replace('/<!--\s*\/?wp:[^>]*-->/s', '', $content);
@@ -545,7 +674,7 @@ class EditLedgerRestController extends \WP_REST_Controller
      * @param string $content The HTML content.
      * @return string Content with media replaced by placeholders.
      */
-    private function convertMediaToPlaceholders($content)
+    public static function convertMediaToPlaceholders($content)
     {
         // Images.
         $content = preg_replace_callback(
