@@ -5,7 +5,7 @@
  * Description: Editorial-friendly revision history with visual diffs and preview capabilities.
  * Version: 2.0.0
  * Author: Alan
- * Requires at least: 7.0
+ * Requires at least: 6.9
  * Requires PHP: 7.4
  * Text Domain: edit-ledger
  */
