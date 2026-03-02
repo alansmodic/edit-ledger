@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-Edit Ledger is a WordPress plugin that replaces the default revision slider with a visual timeline showing who changed what and when. It provides word-level diff visualization, media change tracking, and revision restoration for editorial teams.
+Edit Ledger is a WordPress plugin that complements WP 7.0's native visual revisions with a sidebar timeline showing who changed what and when, media change tracking, and an admin dashboard with word-level diffs. It adds change type labels and media tracking that the native revisions mode does not provide.
 
-**Version:** 1.0.0 | **License:** GPL v2 | **Requires:** WordPress 6.4+, PHP 7.4+
+**Version:** 2.0.0 | **License:** GPL v2 | **Requires:** WordPress 7.0+, PHP 7.4+
 
 ## Architecture
 
@@ -12,6 +12,7 @@ Edit Ledger is a WordPress plugin that replaces the default revision slider with
 edit-ledger/
 ├── edit-ledger.php                          # Plugin entry point, constants, bootstrap
 ├── includes/
+│   ├── constants.php                        # Plugin version and path constants
 │   ├── class-edit-ledger.php                # Core singleton: registers REST routes + editor assets
 │   ├── class-edit-ledger-rest-controller.php  # REST API (extends WP_REST_Controller)
 │   └── class-edit-ledger-diff-generator.php   # LCS-based word-level diff engine
@@ -53,6 +54,17 @@ All routes are under the `edit-ledger/v1` namespace:
 - **`Edit_Ledger_Diff_Generator`** (`includes/class-edit-ledger-diff-generator.php`) — Implements LCS (Longest Common Subsequence) algorithm for word-level diff. Tokenizes text, computes diff operations, renders to `<ins>`/`<del>` HTML.
 - **`Edit_Ledger_Admin`** (`admin/class-edit-ledger-admin.php`) — Singleton. Registers admin menu page, enqueues admin-specific CSS/JS.
 
+## WP 7.0 Visual Revisions Integration
+
+WordPress 7.0 introduces in-editor visual revisions with a revision slider, read-only canvas, and block-level visual diffs. Edit Ledger complements this by providing:
+
+- **Sidebar timeline** with change type labels (auto/manual) and changed field summaries
+- **Media change tracking** (added/removed images, videos, embeds) shown inline in expanded timeline cards
+- **"View in Revisions" button** that opens WP 7.0's native visual revisions mode
+- **Admin dashboard** with word-level diffs and cross-post revision browsing
+
+The editor integration does **not** include its own diff modal, restore functionality, or link hijacking — these are handled natively by WP 7.0.
+
 ## Development Conventions
 
 ### PHP
@@ -90,5 +102,8 @@ There is no build step. To install:
 
 - **Diff generation flow:** REST controller strips HTML from block content via `strip_html_for_diff()` (converting media to `[Image]`, `[Video]`, etc. placeholders first), then passes cleaned text to `Edit_Ledger_Diff_Generator::generate()`
 - **Media tracking:** `extract_media()` pulls images, videos, YouTube, and Vimeo URLs from post content; `get_media_changes()` compares two versions to find added/removed media
-- **Editor integration:** Plugin registers a sidebar via `wp.plugins.registerPlugin()` with `wp.editPost.PluginSidebar` containing a revision timeline, diff modal, and restore functionality
+- **Editor integration:** Two touch points registered via `wp.plugins.registerPlugin()`:
+  1. `PluginDocumentSettingPanel` — compact summary (latest revision type, changed fields, media indicator, action buttons) injected into the native document sidebar
+  2. `PluginSidebar` — full revision timeline with expanded cards and inline media changes (power-user detail view)
+- **Admin dashboard:** Independent of editor integration. Uses the diff REST endpoint and jQuery-based UI with its own diff modal and restore functionality
 - **Permission model:** `edit_post` capability for viewing/restoring individual post revisions; `edit_others_posts` for the admin-wide recent revisions view

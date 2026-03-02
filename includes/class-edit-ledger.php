@@ -75,6 +75,7 @@ class EditLedger
             array(
                 'wp-plugins',
                 'wp-edit-post',
+                'wp-editor',
                 'wp-element',
                 'wp-components',
                 'wp-data',
@@ -94,33 +95,18 @@ class EditLedger
                 'restNonce'     => wp_create_nonce('wp_rest'),
                 'siteUrl'       => get_site_url(),
                 'strings'       => array(
-                    'title'           => __('Edit Ledger', 'edit-ledger'),
-                    'noRevisions'     => __('No revisions found.', 'edit-ledger'),
-                    'loading'         => __('Loading revisions...', 'edit-ledger'),
-                    'viewDiff'        => __('View Diff', 'edit-ledger'),
-                    'preview'         => __('Preview Post', 'edit-ledger'),
-                    'wpRevisions'     => __('WP Revisions', 'edit-ledger'),
-                    'changed'         => __('Changed:', 'edit-ledger'),
-                    'noChanges'       => __('No changes detected', 'edit-ledger'),
-                    'auto'            => __('Auto', 'edit-ledger'),
-                    'save'            => __('Save', 'edit-ledger'),
-                    'ago'             => __('ago', 'edit-ledger'),
-                    'diffTitle'       => __('Revision Diff', 'edit-ledger'),
-                    'inline'          => __('Inline', 'edit-ledger'),
-                    'sideBySide'      => __('Side by Side', 'edit-ledger'),
-                    'revisionHistory' => __('Revision History', 'edit-ledger'),
-                    'restore'         => __('Restore This Version', 'edit-ledger'),
-                    'restoreConfirm'  => __(
-                        'Are you sure you want to restore this revision? '
-                        . 'This will replace the current content with this older version.',
-                        'edit-ledger'
-                    ),
-                    'restoring'       => __('Restoring...', 'edit-ledger'),
-                    'restoreSuccess'  => __(
-                        'Revision restored successfully. Reloading...',
-                        'edit-ledger'
-                    ),
-                    'restoreError'    => __('Failed to restore revision.', 'edit-ledger'),
+                    'title'            => __('Edit Ledger', 'edit-ledger'),
+                    'noRevisions'      => __('No revisions found.', 'edit-ledger'),
+                    'loading'          => __('Loading revisions...', 'edit-ledger'),
+                    'changed'          => __('Changed:', 'edit-ledger'),
+                    'noChanges'        => __('No changes detected', 'edit-ledger'),
+                    'auto'             => __('Auto', 'edit-ledger'),
+                    'save'             => __('Save', 'edit-ledger'),
+                    'ago'              => __('ago', 'edit-ledger'),
+                    'revisionHistory'  => __('Revision History', 'edit-ledger'),
+                    'revisions'        => __('revisions', 'edit-ledger'),
+                    'viewInRevisions'  => __('View in Revisions', 'edit-ledger'),
+                    'viewTimeline'     => __('Full Timeline', 'edit-ledger'),
                 ),
             )
         );
