@@ -31,8 +31,11 @@
 	 * built-in "Revisions" button in the document sidebar.
 	 */
 	function openNativeRevisions() {
+		// WP 7.0 uses two variants of the revisions button:
+		// - Public: .editor-post-last-revision__title (PanelBody context)
+		// - Private: .editor-private-post-last-revision__button (PostPanelRow context)
 		const revisionsBtn = document.querySelector(
-			'.editor-post-last-revision__title, [class*="post-last-revision"] button'
+			'.editor-post-last-revision__title, .editor-private-post-last-revision__button'
 		);
 		if (revisionsBtn) {
 			revisionsBtn.click();
