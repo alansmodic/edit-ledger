@@ -476,6 +476,129 @@
 	}
 
 	/**
+	 * Inject AI summaries into WP 7.0's native visual revisions sidebar.
+	 *
+	 * Uses a MutationObserver to detect when the editor enters revisions
+	 * mode, matches the displayed revision to our loaded data, and injects
+	 * the AI summary below the revision card panel.
+	 *
+	 * @param {Array} revisions - Loaded revisions array from the REST API.
+	 * @return {Function} Cleanup function to disconnect the observer.
+	 */
+	function initRevisionsSummaryInjector(revisions) {
+		if (!revisions || revisions.length === 0) {
+			return function () {};
+		}
+
+		var observer = null;
+		var injectedEl = null;
+
+		/**
+		 * Find a revision matching the date string shown in the card panel.
+		 * Falls back to slider index if no text match is found.
+		 */
+		function matchRevision(cardPanel) {
+			// The card panel renders the revision date as text content.
+			// Try to match against date_relative from our data.
+			var panelText = cardPanel.textContent || '';
+
+			for (var i = 0; i < revisions.length; i++) {
+				var rev = revisions[i];
+				if (rev.date_relative && panelText.indexOf(rev.date_relative) !== -1) {
+					return rev;
+				}
+			}
+
+			// Fallback: use the slider value as an index into revisions.
+			var slider = document.querySelector('.editor-revisions__slider input[type="range"], .components-range-control input[type="range"]');
+			if (slider) {
+				var val = parseInt(slider.value, 10);
+				var max = parseInt(slider.max, 10);
+				// Slider is 0-based from oldest to newest; revisions array is newest-first.
+				var index = max - val;
+				if (index >= 0 && index < revisions.length) {
+					return revisions[index];
+				}
+			}
+
+			return null;
+		}
+
+		/**
+		 * Remove any previously injected summary element.
+		 */
+		function removeInjected() {
+			if (injectedEl && injectedEl.parentNode) {
+				injectedEl.parentNode.removeChild(injectedEl);
+			}
+			injectedEl = null;
+		}
+
+		/**
+		 * Attempt to inject the AI summary into the revisions sidebar.
+		 */
+		function tryInject() {
+			var cardPanel = document.querySelector('.editor-post-card-panel');
+			if (!cardPanel) {
+				removeInjected();
+				return;
+			}
+
+			var revision = matchRevision(cardPanel);
+			if (!revision || !revision.ai_summary) {
+				removeInjected();
+				return;
+			}
+
+			// If already showing the correct summary, skip.
+			if (injectedEl && injectedEl.dataset.revisionId === String(revision.id)) {
+				return;
+			}
+
+			removeInjected();
+
+			injectedEl = document.createElement('div');
+			injectedEl.className = 'edit-ledger-revisions-ai-summary';
+			injectedEl.dataset.revisionId = String(revision.id);
+
+			var label = document.createElement('span');
+			label.className = 'edit-ledger-revisions-ai-summary__label';
+			label.textContent = (strings.aiSummary || 'AI Summary') + ':';
+
+			var text = document.createElement('span');
+			text.className = 'edit-ledger-revisions-ai-summary__text';
+			text.textContent = ' ' + revision.ai_summary;
+
+			injectedEl.appendChild(label);
+			injectedEl.appendChild(text);
+
+			// Insert after the card panel.
+			cardPanel.parentNode.insertBefore(injectedEl, cardPanel.nextSibling);
+		}
+
+		// Observe the editor sidebar for changes (entering/exiting revisions, slider movement).
+		var sidebar = document.querySelector('.editor-sidebar, .interface-complementary-area');
+		var target = sidebar || document.body;
+
+		observer = new MutationObserver(function () {
+			tryInject();
+		});
+
+		observer.observe(target, { childList: true, subtree: true });
+
+		// Initial check in case revisions mode is already open.
+		tryInject();
+
+		return function () {
+			if (observer) {
+				observer.disconnect();
+				observer = null;
+			}
+			removeInjected();
+		};
+	}
+
+	/**
 	 * Main Edit Ledger Plugin Component.
 	 */
 	function EditLedgerPlugin() {
@@ -517,6 +640,15 @@
 					setIsLoading(false);
 				});
 		}, [postId]);
+
+		// Wire up revisions-mode AI summary injection.
+		useEffect(function () {
+			if (isLoading || revisions.length === 0) {
+				return;
+			}
+			var cleanup = initRevisionsSummaryInjector(revisions);
+			return cleanup;
+		}, [revisions, isLoading]);
 
 		var sidebarContent = wp.element.createElement(
 			wp.element.Fragment,

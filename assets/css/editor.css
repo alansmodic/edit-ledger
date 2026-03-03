@@ -373,6 +373,22 @@
 	cursor: pointer;
 }
 
+/* AI Summary — Native Revisions Sidebar */
+.edit-ledger-revisions-ai-summary {
+	font-size: 12px;
+	background: #f0f0f1;
+	padding: 8px 12px;
+	border-radius: 4px;
+	margin: 8px 0;
+	line-height: 1.5;
+	color: #1e1e1e;
+}
+
+.edit-ledger-revisions-ai-summary__label {
+	font-weight: 600;
+	color: #646970;
+}
+
 /* AI Summary — Document Panel */
 .edit-ledger-doc-panel__ai-summary {
 	font-size: 12px;
