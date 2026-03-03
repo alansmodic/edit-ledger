@@ -100,10 +100,6 @@ class EditLedgerAbilities
                     return false;
                 }
 
-                if (! current_user_can('prompt_ai')) {
-                    return false;
-                }
-
                 return true;
             },
             'meta'                => array(

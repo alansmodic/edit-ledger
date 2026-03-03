@@ -56,15 +56,6 @@ class EditLedger
             return;
         }
 
-        $revision = get_post($revision_id);
-        if (! $revision) {
-            return;
-        }
-
-        if (! user_can($revision->post_author, 'prompt_ai')) {
-            return;
-        }
-
         $ai->generate($revision_id);
     }
 
@@ -144,7 +135,7 @@ class EditLedger
                     'summaryError'     => __('Could not generate summary.', 'edit-ledger'),
                     'retry'            => __('Retry', 'edit-ledger'),
                 ),
-                'aiAvailable'   => function_exists('wp_ai_client_prompt') && current_user_can('prompt_ai'),
+                'aiAvailable'   => ( new EditLedgerAiSummary() )->isAvailable(),
             )
         );
     }

@@ -500,14 +500,6 @@ class EditLedgerRestController extends \WP_REST_Controller
             );
         }
 
-        if (! current_user_can('prompt_ai')) {
-            return new \WP_Error(
-                'forbidden',
-                __('You do not have permission to use AI features.', 'edit-ledger'),
-                array( 'status' => 403 )
-            );
-        }
-
         return true;
     }
 
