@@ -377,16 +377,40 @@
 .edit-ledger-revisions-ai-summary {
 	font-size: 12px;
 	background: #f0f0f1;
-	padding: 8px 12px;
+	padding: 12px 14px;
 	border-radius: 4px;
-	margin: 8px 0;
+	margin: 12px 0;
 	line-height: 1.5;
 	color: #1e1e1e;
 }
 
-.edit-ledger-revisions-ai-summary__label {
+.edit-ledger-revisions-ai-summary__heading {
 	font-weight: 600;
+	font-size: 11px;
+	text-transform: uppercase;
 	color: #646970;
+	letter-spacing: 0.5px;
+	margin-bottom: 6px;
+}
+
+.edit-ledger-revisions-ai-summary__list {
+	margin: 0;
+	padding: 0 0 0 16px;
+	list-style: disc;
+}
+
+.edit-ledger-revisions-ai-summary__list li {
+	margin-bottom: 4px;
+	line-height: 1.5;
+}
+
+.edit-ledger-revisions-ai-summary__list li:last-child {
+	margin-bottom: 0;
+}
+
+.edit-ledger-revisions-ai-summary__text {
+	margin: 0;
+	line-height: 1.5;
 }
 
 /* AI Summary — Document Panel */

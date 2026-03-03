@@ -492,6 +492,8 @@
 
 		var observer = null;
 		var injectedEl = null;
+		var sliderListener = null;
+		var sliderEl = null;
 
 		/**
 		 * Find a revision matching the date string shown in the card panel.
@@ -561,19 +563,61 @@
 			injectedEl.className = 'edit-ledger-revisions-ai-summary';
 			injectedEl.dataset.revisionId = String(revision.id);
 
-			var label = document.createElement('span');
-			label.className = 'edit-ledger-revisions-ai-summary__label';
-			label.textContent = (strings.aiSummary || 'AI Summary') + ':';
+			var heading = document.createElement('div');
+			heading.className = 'edit-ledger-revisions-ai-summary__heading';
+			heading.textContent = strings.aiSummary || 'AI Summary';
+			injectedEl.appendChild(heading);
 
-			var text = document.createElement('span');
-			text.className = 'edit-ledger-revisions-ai-summary__text';
-			text.textContent = ' ' + revision.ai_summary;
+			// Split summary into bullet points on sentence boundaries or newlines.
+			var summaryText = revision.ai_summary.trim();
+			var points = summaryText.split(/\n+/).reduce(function (acc, line) {
+				var trimmed = line.trim();
+				if (!trimmed) return acc;
+				// If a line contains multiple sentences, split further.
+				var sentences = trimmed.split(/(?<=\.)\s+/);
+				return acc.concat(sentences);
+			}, []);
 
-			injectedEl.appendChild(label);
-			injectedEl.appendChild(text);
+			if (points.length > 1) {
+				var list = document.createElement('ul');
+				list.className = 'edit-ledger-revisions-ai-summary__list';
+				points.forEach(function (point) {
+					var li = document.createElement('li');
+					li.textContent = point;
+					list.appendChild(li);
+				});
+				injectedEl.appendChild(list);
+			} else {
+				var para = document.createElement('p');
+				para.className = 'edit-ledger-revisions-ai-summary__text';
+				para.textContent = summaryText;
+				injectedEl.appendChild(para);
+			}
 
 			// Insert after the card panel.
 			cardPanel.parentNode.insertBefore(injectedEl, cardPanel.nextSibling);
+		}
+
+		/**
+		 * Bind an input listener on the revision slider so summary
+		 * updates immediately when the user drags it.
+		 */
+		function bindSliderListener() {
+			var slider = document.querySelector('.editor-revisions__slider input[type="range"], .components-range-control input[type="range"]');
+			if (slider && slider !== sliderEl) {
+				unbindSliderListener();
+				sliderEl = slider;
+				sliderListener = function () { tryInject(); };
+				sliderEl.addEventListener('input', sliderListener);
+			}
+		}
+
+		function unbindSliderListener() {
+			if (sliderEl && sliderListener) {
+				sliderEl.removeEventListener('input', sliderListener);
+			}
+			sliderEl = null;
+			sliderListener = null;
 		}
 
 		// Observe the editor sidebar for changes (entering/exiting revisions, slider movement).
@@ -582,18 +626,21 @@
 
 		observer = new MutationObserver(function () {
 			tryInject();
+			bindSliderListener();
 		});
 
-		observer.observe(target, { childList: true, subtree: true });
+		observer.observe(target, { childList: true, subtree: true, characterData: true });
 
 		// Initial check in case revisions mode is already open.
 		tryInject();
+		bindSliderListener();
 
 		return function () {
 			if (observer) {
 				observer.disconnect();
 				observer = null;
 			}
+			unbindSliderListener();
 			removeInjected();
 		};
 	}
