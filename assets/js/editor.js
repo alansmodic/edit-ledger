@@ -27,19 +27,29 @@
 	const { strings } = config;
 
 	/**
-	 * Open WP 7.0's native visual revisions mode by clicking the
-	 * built-in "Revisions" button in the document sidebar.
+	 * Open WP 7.0's native visual revisions mode.
+	 *
+	 * Tries to click the native revisions button. If the Edit Ledger
+	 * sidebar is open the document panel may not be rendered, so we
+	 * switch to the document sidebar first and retry after a tick.
 	 */
 	function openNativeRevisions() {
-		// WP 7.0 uses two variants of the revisions button:
-		// - Public: .editor-post-last-revision__title (PanelBody context)
-		// - Private: .editor-private-post-last-revision__button (PostPanelRow context)
-		const revisionsBtn = document.querySelector(
-			'.editor-post-last-revision__title, .editor-private-post-last-revision__button'
-		);
-		if (revisionsBtn) {
-			revisionsBtn.click();
+		var selectors = '.editor-post-last-revision__title, .editor-private-post-last-revision__button';
+
+		var btn = document.querySelector(selectors);
+		if (btn) {
+			btn.click();
+			return;
 		}
+
+		// Button not in DOM — switch to the document sidebar so it renders.
+		wp.data.dispatch('core/edit-post').openGeneralSidebar('edit-post/document');
+		setTimeout(function () {
+			var btn = document.querySelector(selectors);
+			if (btn) {
+				btn.click();
+			}
+		}, 150);
 	}
 
 	/**
