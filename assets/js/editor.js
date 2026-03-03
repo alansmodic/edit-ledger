@@ -495,6 +495,8 @@
 		var sliderListener = null;
 		var sliderEl = null;
 		var injecting = false;
+		var autoGenTimer = null;
+		var generatingForId = null;
 
 		/**
 		 * Find a revision matching the date string shown in the card panel.
@@ -540,44 +542,19 @@
 		/**
 		 * Attempt to inject the AI summary into the revisions sidebar.
 		 */
-		function tryInject() {
-			if (injecting) return;
-
-			var cardPanel = document.querySelector('.editor-post-card-panel');
-			if (!cardPanel) {
-				removeInjected();
-				return;
-			}
-
-			var revision = matchRevision(cardPanel);
-			if (!revision || !revision.ai_summary) {
-				removeInjected();
-				return;
-			}
-
-			// If already showing the correct summary, skip.
-			if (injectedEl && injectedEl.dataset.revisionId === String(revision.id)) {
-				return;
-			}
-
-			injecting = true;
-			removeInjected();
-
-			injectedEl = document.createElement('div');
-			injectedEl.className = 'edit-ledger-revisions-ai-summary';
-			injectedEl.dataset.revisionId = String(revision.id);
-
+		/**
+		 * Build the formatted summary content (heading + bullet list or paragraph).
+		 */
+		function buildSummaryContent(container, summaryText) {
 			var heading = document.createElement('div');
 			heading.className = 'edit-ledger-revisions-ai-summary__heading';
 			heading.textContent = strings.aiSummary || 'AI Summary';
-			injectedEl.appendChild(heading);
+			container.appendChild(heading);
 
-			// Split summary into bullet points on sentence boundaries or newlines.
-			var summaryText = revision.ai_summary.trim();
-			var points = summaryText.split(/\n+/).reduce(function (acc, line) {
+			var text = summaryText.trim();
+			var points = text.split(/\n+/).reduce(function (acc, line) {
 				var trimmed = line.trim();
 				if (!trimmed) return acc;
-				// If a line contains multiple sentences, split further.
 				var sentences = trimmed.split(/(?<=\.)\s+/);
 				return acc.concat(sentences);
 			}, []);
@@ -590,17 +567,204 @@
 					li.textContent = point;
 					list.appendChild(li);
 				});
-				injectedEl.appendChild(list);
+				container.appendChild(list);
 			} else {
 				var para = document.createElement('p');
 				para.className = 'edit-ledger-revisions-ai-summary__text';
-				para.textContent = summaryText;
-				injectedEl.appendChild(para);
+				para.textContent = text;
+				container.appendChild(para);
+			}
+		}
+
+		/**
+		 * Generate an AI summary for a revision via the REST API.
+		 */
+		function generateSummary(revision) {
+			if (generatingForId === revision.id) return;
+			generatingForId = revision.id;
+
+			// Show loading state.
+			showLoading(revision);
+
+			apiFetch({
+				path: '/edit-ledger/v1/revisions/' + revision.id + '/summary',
+				method: 'POST',
+			})
+				.then(function (data) {
+					// Cache it on the revision object so subsequent visits don't re-generate.
+					revision.ai_summary = data.summary;
+					generatingForId = null;
+					tryInject();
+				})
+				.catch(function () {
+					generatingForId = null;
+					// Show error state with retry.
+					showError(revision);
+				});
+		}
+
+		/**
+		 * Show a loading indicator in the injected element.
+		 */
+		function showLoading(revision) {
+			injecting = true;
+			removeInjected();
+
+			injectedEl = document.createElement('div');
+			injectedEl.className = 'edit-ledger-revisions-ai-summary edit-ledger-revisions-ai-summary--loading';
+			injectedEl.dataset.revisionId = String(revision.id);
+			injectedEl.dataset.state = 'loading';
+
+			var heading = document.createElement('div');
+			heading.className = 'edit-ledger-revisions-ai-summary__heading';
+			heading.textContent = strings.aiSummary || 'AI Summary';
+			injectedEl.appendChild(heading);
+
+			var loadingRow = document.createElement('div');
+			loadingRow.className = 'edit-ledger-revisions-ai-summary__loading';
+			loadingRow.innerHTML = '<span class="edit-ledger-revisions-ai-summary__spinner"></span> ' + (strings.summarizing || 'Generating summary…');
+			injectedEl.appendChild(loadingRow);
+
+			var cardPanel = document.querySelector('.editor-post-card-panel');
+			if (cardPanel) {
+				cardPanel.parentNode.insertBefore(injectedEl, cardPanel.nextSibling);
+			}
+			injecting = false;
+		}
+
+		/**
+		 * Show an error state with a retry button.
+		 */
+		function showError(revision) {
+			injecting = true;
+			removeInjected();
+
+			injectedEl = document.createElement('div');
+			injectedEl.className = 'edit-ledger-revisions-ai-summary edit-ledger-revisions-ai-summary--error';
+			injectedEl.dataset.revisionId = String(revision.id);
+			injectedEl.dataset.state = 'error';
+
+			var heading = document.createElement('div');
+			heading.className = 'edit-ledger-revisions-ai-summary__heading';
+			heading.textContent = strings.aiSummary || 'AI Summary';
+			injectedEl.appendChild(heading);
+
+			var errorRow = document.createElement('div');
+			errorRow.className = 'edit-ledger-revisions-ai-summary__error';
+
+			var errorText = document.createElement('span');
+			errorText.textContent = (strings.summaryError || 'Could not generate summary.') + ' ';
+			errorRow.appendChild(errorText);
+
+			var retryLink = document.createElement('a');
+			retryLink.className = 'edit-ledger-revisions-ai-summary__retry';
+			retryLink.textContent = strings.retry || 'Retry';
+			retryLink.setAttribute('role', 'button');
+			retryLink.setAttribute('tabindex', '0');
+			retryLink.addEventListener('click', function (e) {
+				e.preventDefault();
+				generateSummary(revision);
+			});
+			errorRow.appendChild(retryLink);
+
+			injectedEl.appendChild(errorRow);
+
+			var cardPanel = document.querySelector('.editor-post-card-panel');
+			if (cardPanel) {
+				cardPanel.parentNode.insertBefore(injectedEl, cardPanel.nextSibling);
+			}
+			injecting = false;
+		}
+
+		function tryInject() {
+			if (injecting) return;
+
+			// Cancel any pending auto-generate when the slider moves.
+			if (autoGenTimer) {
+				clearTimeout(autoGenTimer);
+				autoGenTimer = null;
 			}
 
-			// Insert after the card panel.
+			var cardPanel = document.querySelector('.editor-post-card-panel');
+			if (!cardPanel) {
+				removeInjected();
+				return;
+			}
+
+			var revision = matchRevision(cardPanel);
+			if (!revision) {
+				removeInjected();
+				return;
+			}
+
+			// If currently generating for this revision, don't touch the UI.
+			if (generatingForId === revision.id && injectedEl && injectedEl.dataset.state === 'loading') {
+				return;
+			}
+
+			// Revision has a summary — render it.
+			if (revision.ai_summary) {
+				if (injectedEl && injectedEl.dataset.revisionId === String(revision.id) && !injectedEl.dataset.state) {
+					return;
+				}
+
+				injecting = true;
+				removeInjected();
+
+				injectedEl = document.createElement('div');
+				injectedEl.className = 'edit-ledger-revisions-ai-summary';
+				injectedEl.dataset.revisionId = String(revision.id);
+
+				buildSummaryContent(injectedEl, revision.ai_summary);
+
+				cardPanel.parentNode.insertBefore(injectedEl, cardPanel.nextSibling);
+				injecting = false;
+				return;
+			}
+
+			// No summary — show a generate button, and auto-generate after a debounce.
+			if (!config.aiAvailable) {
+				removeInjected();
+				return;
+			}
+
+			// If we already show the button for this revision, keep it.
+			if (injectedEl && injectedEl.dataset.revisionId === String(revision.id) && injectedEl.dataset.state === 'button') {
+				return;
+			}
+
+			injecting = true;
+			removeInjected();
+
+			injectedEl = document.createElement('div');
+			injectedEl.className = 'edit-ledger-revisions-ai-summary edit-ledger-revisions-ai-summary--empty';
+			injectedEl.dataset.revisionId = String(revision.id);
+			injectedEl.dataset.state = 'button';
+
+			var heading = document.createElement('div');
+			heading.className = 'edit-ledger-revisions-ai-summary__heading';
+			heading.textContent = strings.aiSummary || 'AI Summary';
+			injectedEl.appendChild(heading);
+
+			var btn = document.createElement('button');
+			btn.className = 'components-button is-secondary is-small edit-ledger-revisions-ai-summary__generate';
+			btn.textContent = strings.summarize || 'Generate Summary';
+			btn.addEventListener('click', function (e) {
+				e.preventDefault();
+				generateSummary(revision);
+			});
+			injectedEl.appendChild(btn);
+
 			cardPanel.parentNode.insertBefore(injectedEl, cardPanel.nextSibling);
 			injecting = false;
+
+			// Auto-generate after 800ms debounce (lets the user slide past without triggering).
+			autoGenTimer = setTimeout(function () {
+				autoGenTimer = null;
+				if (!revision.ai_summary && generatingForId !== revision.id) {
+					generateSummary(revision);
+				}
+			}, 800);
 		}
 
 		/**
@@ -641,6 +805,10 @@
 		bindSliderListener();
 
 		return function () {
+			if (autoGenTimer) {
+				clearTimeout(autoGenTimer);
+				autoGenTimer = null;
+			}
 			if (observer) {
 				observer.disconnect();
 				observer = null;
