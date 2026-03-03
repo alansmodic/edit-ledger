@@ -494,6 +494,7 @@
 		var injectedEl = null;
 		var sliderListener = null;
 		var sliderEl = null;
+		var injecting = false;
 
 		/**
 		 * Find a revision matching the date string shown in the card panel.
@@ -540,6 +541,8 @@
 		 * Attempt to inject the AI summary into the revisions sidebar.
 		 */
 		function tryInject() {
+			if (injecting) return;
+
 			var cardPanel = document.querySelector('.editor-post-card-panel');
 			if (!cardPanel) {
 				removeInjected();
@@ -557,6 +560,7 @@
 				return;
 			}
 
+			injecting = true;
 			removeInjected();
 
 			injectedEl = document.createElement('div');
@@ -596,6 +600,7 @@
 
 			// Insert after the card panel.
 			cardPanel.parentNode.insertBefore(injectedEl, cardPanel.nextSibling);
+			injecting = false;
 		}
 
 		/**
@@ -629,7 +634,7 @@
 			bindSliderListener();
 		});
 
-		observer.observe(target, { childList: true, subtree: true, characterData: true });
+		observer.observe(target, { childList: true, subtree: true });
 
 		// Initial check in case revisions mode is already open.
 		tryInject();
